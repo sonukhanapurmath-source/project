@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Balloon Pop – Game</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: linear-gradient(135deg, #0d0d1f 0%, #1a1a3e 60%, #0f2460 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── TOP BAR ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            background: rgba(0,0,0,0.35);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+        .top-bar h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+        .top-info { display: flex; align-items: center; gap: 20px; font-size: 14px; color: rgba(255,255,255,0.7); }
+        .top-info .live { color: #4ade80; font-weight: 700; animation: blink 1.2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        /* ── STAT CARDS ── */
+        .stats {
+            display: flex;
+            gap: 12px;
+            padding: 14px 20px;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 100px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .stat-card h4 { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+        .stat-card h2 { font-size: 26px; font-weight: 800; }
+        .stat-card.blue   h2 { color: #60a5fa; }
+        .stat-card.pink   h2 { color: #f472b6; }
+        .stat-card.yellow h2 { color: #facc15; }
+        .stat-card.green  h2 { color: #4ade80; }
+        .stat-card        h2 { color: #a78bfa; }
+
+        /* ── MAIN CONTENT AREA ── */
+        .main {
+            display: flex;
+            flex: 1;
+            gap: 14px;
+            padding: 0 20px 14px;
+            min-height: 0; /* critical: lets flex children shrink */
+        }
+
+        /* ── GAME PANEL ── */
+        .game-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .panel-header {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.5);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+
+        /* ── CANVAS — this is the critical fix ── */
+        #gameCanvas {
+            flex: 1;          /* fill remaining height inside game-panel */
+            width: 100%;
+            display: block;
+            min-height: 400px; /* fallback so canvas is never 0px */
+        }
+
+        /* ── LEADERBOARD SIDEBAR ── */
+        .sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .leaderboard-panel {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .leaderboard-panel h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        #leaderboard { list-style: none; }
+        #leaderboard li {
+            padding: 9px 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            margin-bottom: 6px;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        #leaderboard li span:first-child { font-weight: 700; }
+        #leaderboard li span:last-child  { font-size: 11px; color: rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body>
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <h1>🎈 Balloon Pop!</h1>
+        <div class="top-info">
+            <span>👤 {{ player }}</span>
+            <span>Level <span id="level" class="level-display">1</span></span>
+            <span class="live">● LIVE</span>
+            <a href="/logout" style="color:#f87171;font-weight:700;text-decoration:none;">Logout</a>
+        </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats">
+        <div class="stat-card blue">
+            <h4>Balloons Popped</h4>
+            <h2 id="score">0</h2>
+        </div>
+        <div class="stat-card pink">
+            <h4>Best Score</h4>
+            <h2 id="bestScore">0</h2>
+        </div>
+        <div class="stat-card yellow">
+            <h4>Level</h4>
+            <h2 id="level2" class="level-display">1</h2>
+        </div>
+        <div class="stat-card green">
+            <h4>Players</h4>
+            <h2 id="players">0</h2>
+        </div>
+        <div class="stat-card">
+            <h4>Best Player</h4>
+            <h2 id="bestPlayer">-</h2>
+        </div>
+    </div>
+
+    <!-- MAIN: CANVAS + SIDEBAR -->
+    <div class="main">
+
+        <div class="game-panel">
+            <div class="panel-header">🎮 Sky Arena — Live View</div>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div class="sidebar">
+            <div class="leaderboard-panel">
+                <h3>🏆 Leaderboard</h3>
+                <ul id="leaderboard"></ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="/static/game.js"></script>
+</body>
+</html>
